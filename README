@@ -1,8 +1,17 @@
 Um Sistema Peer-to-peer de Armazenamento Chave-valor
 
-Grupo:
-Junio Cezar
-João Paulo
-Humberto
+Grupo:  Junio Cezar | João Paulo | Humberto
 
-o
+Implementar: * Um protocolo em nível de aplicaçao, utilizando
+               interface de sockets UPD.
+             * Duas aplicações que utilizam este protocolo:
+               1 - Servent: Responsável pelo armazenamento da
+                            base de dados.
+               2 - Cliente: Recebe chaves dos usuários, realiza
+                            consulta na rede e imprime resultados.
+
+Execução:  
+            ./servent <PORTA> <ARQUIVO-BASE-DADOS> <IP1:PORTA1> ... <IPN:PORTAN>
+            ./cliente <IP:PORTA>
+
+
