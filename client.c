@@ -11,6 +11,7 @@
 #include <string>
 #include <cstring>
 #include <cstdlib>
+#include <stdint.h> // ToDo: Macro para versao da std, 98 ou 11
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -25,6 +26,22 @@ void perr (const char *str) {
   fprintf(stderr, "***********************************************************\n");
   exit(EXIT_FAILURE);
 }
+
+void pack(uint16_t code, char *data, char *byte_array, int byte_array_len) {
+  uint16_t code_net = htons(code);
+  memset(byte_array, 0, sizeof(*byte_array) * byte_array_len);
+  memcpy(&(byte_array[0]), &code_net, sizeof(code_net)); // CODE, QUERY, RESPONSE,
+  memcpy(&(byte_array[2]), data, strlen(data)); //
+}
+
+uint16_t unpack(char *byte_array, char *data, int data_len) {
+  uint16_t code_net;
+  memset(data, '\0', sizeof(*data) * data_len);
+  memcpy(&code_net, &(byte_array[0]), sizeof(code_net)); // CODE, QUERY, RESPONSE,
+  memcpy(data, &(byte_array[2]), sizeof(*data) * data_len); //
+  return ntohs(code_net);
+}
+
 
 // key --> up to 40 chars
 // values -> up to 160 chars
@@ -56,23 +73,28 @@ int main (int argc, char** argv) {
   si_other.sin_family = AF_INET;
   si_other.sin_port = htons(atoi(port));
   si_other.sin_addr.s_addr = inet_addr(ip);
-     
-  if (sendto(sockfd, "teste", 5, 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
+
+  char key[40];
+  printf("Insira uma chave para consulta, max 40 caracteres: ");
+  scanf("%s", key);
+
+  char byte_array[42];
+  pack(1, key, byte_array, 42);
+
+  if (sendto(sockfd, byte_array, sizeof(byte_array), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
     perr("sendto()"); // ToDo: perr -> pwar
   }
 
-  char key[40];
-  printf("Insira uma chave para consulta: ");
-  scanf("%s\n", key);
-
-  char buf[1000];
+  char data[170];
+  char msg[160];
   unsigned int slen = sizeof(si_other);
-  int recv_len = recvfrom(sockfd, buf, 1000, 0, (struct sockaddr *) &si_other, &slen);
-
+  int recv_len = recvfrom(sockfd, data, 170, 0, (struct sockaddr *) &si_other, &slen);
          
-    // imprimir detalhes da host que nos enviou dados
-    printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-    printf("Data: %s\n" , buf);
+  // imprimir detalhes da host que nos enviou dados  
+  uint16_t code = unpack(data, msg, 160);
+  printf("Received packet ID = %u from %s:%d\n", code, inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+  printf("Data: %s\n", msg);
+  
     
 
   return 0;
