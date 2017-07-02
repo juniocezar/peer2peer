@@ -178,7 +178,7 @@ int main (int argc, char** argv) {
   int BUFLEN = 1000, recv_len;
   unsigned int slen = sizeof(si_other);
   while (true) {
-    printf("Aguardando solicitacao...");
+    printf("Aguardando solicitacao...\n");
     fflush(stdout);
          
     // bloquear enquanto espera alguma entrada de dados
@@ -190,10 +190,9 @@ int main (int argc, char** argv) {
     printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
     printf("Data: %s\n" , buf);
          
-    /*
-    if (sendto(s, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1) {
-      pwar("sendto()");
-    }*/
+    if (sendto(sockfd, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1) {
+      perr("sendto()");
+    }
   }
 
   close(sockfd);  
