@@ -26,6 +26,8 @@ void perr (const char *str) {
   exit(EXIT_FAILURE);
 }
 
+// key --> up to 40 chars
+// values -> up to 160 chars
 
 int main (int argc, char** argv) {
   if (argc < 2) {
@@ -58,6 +60,10 @@ int main (int argc, char** argv) {
   if (sendto(sockfd, "teste", 5, 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
     perr("sendto()"); // ToDo: perr -> pwar
   }
+
+  char key[40];
+  printf("Insira uma chave para consulta: ");
+  scanf("%s\n", key);
 
   char buf[1000];
   unsigned int slen = sizeof(si_other);
