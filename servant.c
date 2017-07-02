@@ -14,6 +14,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <ifaddrs.h>  // pegar interfaces ativas e IPs associados
 
 #include <map>
 #include <fstream>
@@ -141,6 +142,38 @@ int main (int argc, char** argv) {
     perr("bind");
   }
 
+  printf("===========================================================\n");
+  printf("\tServant iniciado e escutando na porta %u\n", ntohs(si_me.sin_port));
+  printf("\nAs seguintes interfaces e enderecos IPs podem ser\
+          \nutilizados para se comunicar com o servant:\n\n");
+
+  // listando interfaces ativas no computador e mostrando IPs associados
+  struct ifaddrs *ifap, *ifa;
+  struct sockaddr_in *sa;
+  char *addr;
+
+  getifaddrs (&ifap);
+  i = 1;
+  for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+    if (ifa->ifa_addr->sa_family==AF_INET) {
+      sa = (struct sockaddr_in *) ifa->ifa_addr;
+      addr = inet_ntoa(sa->sin_addr);
+      printf("%d - Interface: %s\tEndereco IP: %s\n", i, ifa->ifa_name, addr);
+      i++;
+    }
+  }
+  freeifaddrs(ifap);
+
+  printf("\nDicionario local conta com %lu entradas.\n", dictionary.size());
+  printf("Vizinhos: \n");
+
+  for (int i = 0; i < argc - 3; i++) {
+    printf("(%s,%s) ", neighbors[i].ip.c_str(), neighbors[i].port.c_str());
+    if (i % 3 == 0) 
+      printf("\n");
+  }
+  printf("\n");
+
   char buf[1000];
   int BUFLEN = 1000, recv_len;
   unsigned int slen = sizeof(si_other);
@@ -162,7 +195,6 @@ int main (int argc, char** argv) {
       pwar("sendto()");
     }*/
   }
-
 
   close(sockfd);  
   return 0;
