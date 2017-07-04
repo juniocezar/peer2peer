@@ -7,6 +7,7 @@
 *******************************************************************************/
 // Escrito em C com Classes haha
 
+#include <iostream>
 #include <cstdio>
 #include <string>
 #include <cstring>
@@ -15,18 +16,12 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <ifaddrs.h>  // pegar interfaces ativas e IPs associados
-
 #include <map>
 #include <fstream>
 
-using std::string;
+#include "utilitario.h"
 
-void perr (const char *str) {
-  fprintf(stderr, "***********************************************************\n");
-  fprintf(stderr, "ERROR: %s\n", str);
-  fprintf(stderr, "***********************************************************\n");
-  exit(EXIT_FAILURE);
-}
+using std::string;
 
 /*void pwar (const char *format, ...) {
   va_list arg;
@@ -116,6 +111,8 @@ int main (int argc, char** argv) {
     string value = stripped_line.substr(key_end, stripped_line.size());
 
     dictionary[key] = value;
+    //std::cout << "Chave encontrada:" << dictionary.find(key)->first << '\n';
+    //std::cout << "Valor encontrado:" << dictionary.find(key)->second << '\n';
 
     //Nota: Podemos retirar os espacos em branco ou tabs do inicio dos valores
     // nao eh necessario segundo a documentacao, mas seria interessante
@@ -174,11 +171,12 @@ int main (int argc, char** argv) {
   }
   printf("\n");
 
-  char buf[1000];
+  char buf[1000], msgType[7], keyReceived[40];
   int BUFLEN = 1000, recv_len;
   unsigned int slen = sizeof(si_other);
   while (true) {
     printf("Aguardando solicitacao...\n");
+    printf("###############################################################################################\n");
     fflush(stdout);
 
     // bloquear enquanto espera alguma entrada de dados
@@ -186,13 +184,40 @@ int main (int argc, char** argv) {
       perr("recvfrom()");
     }
 
+    getMessageType(msgType,buf);
+    getKey(keyReceived,buf);
+
     // imprimir detalhes da host que nos enviou dados
     printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-    printf("Data: %s\n" , &buf[2]);
-    printf("\nEstou ignorando o cliente, não irei responder...\n\n");
-    /*if (sendto(sockfd, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1) {
-      perr("sendto()");
-    }*/
+    printf("Type of message received: %s\n", msgType);
+    printf("Key received: %s\n",keyReceived);
+
+    if(strcmp(msgType,"CLIREQ") == 0){
+        printf("Processing client's request...\n");
+
+        // *TO DO* Enviar mensagem para todos os vizinhos
+
+        // Reponder o cliente, caso ache a chave
+        std::map<string,string>::iterator it;
+        it = dictionary.find(keyReceived);
+        if(it != dictionary.end()){
+            // Junio : Estou tentando colocar o valor da chave encontrada, no buffer para responder o cliente.
+            // Não estou conseguindo
+            //pack(3,dictionary.find(keyReceived)->second,buf,160);
+            printf("Achou a chave NÃO SEI COMO RECUPERAR O VALOR E RETORNAR PARA O CLIENTE, POR CAUSA DO TIPO DO VALOR EM DICTIONARY\n");
+        }
+
+        if (sendto(sockfd, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1) {
+            perr("sendto()");
+        }
+
+    }else if(strcmp(msgType,"QUERY") == 0){
+        printf("Processing neighbour's request...\n");
+    }else{
+        perr("msgtype");
+    }
+
+    printf("###############################################################################################\n\n");
 
   }
 
