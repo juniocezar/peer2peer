@@ -3,7 +3,7 @@
 * Junio Cezar Ribeiro da Silva - 2012075597                                    *
 * Servant                                                                      *
 * Compilar: make                                                               *
-* Executar: ./servent <PORTA> <ARQUIVO-BASE-DADOS> <IP1:PORTA1>...<IPN:PORTAN> *    
+* Executar: ./servent <PORTA> <ARQUIVO-BASE-DADOS> <IP1:PORTA1>...<IPN:PORTAN> *
 *******************************************************************************/
 // Escrito em C com Classes haha
 
@@ -40,10 +40,10 @@ void perr (const char *str) {
 }
 */
 
-typedef struct Neighbors {
+typedef struct Neighbours {
   string ip;
   string port;
-} Neighbors;
+} Neighbours;
 
 int main (int argc, char** argv) {
   if (argc <= 3) {
@@ -54,11 +54,11 @@ int main (int argc, char** argv) {
 
   int port   = atoi(argv[1]);
   char* data_base_name = argv[2];
-  Neighbors neighbors[argc - 3];
+  Neighbours neighbours[argc - 3];
   std::map <string, string> dictionary;
 
   // iterando sobre argumentos para extrair vizinhos a se conectar
-  // i = 3, pois iremos ignorar os 3 primeiros argumentos da cli 
+  // i = 3, pois iremos ignorar os 3 primeiros argumentos da cli
   int i = 3;
   while (i < argc) {
     char* ip   = strtok(argv[i], ":");
@@ -67,9 +67,9 @@ int main (int argc, char** argv) {
       fprintf(stderr, "IP ou porta de algum vizinho inseridos incorretamente!\n");
       return 1;
     }
-    
-    neighbors[i-3].ip   = string(ip);
-    neighbors[i-3].port = string(port);
+
+    neighbours[i-3].ip   = string(ip);
+    neighbours[i-3].port = string(port);
     i++;
   }
 
@@ -91,7 +91,7 @@ int main (int argc, char** argv) {
     // removendo espacos em branco do comeco e fim da linha
     size_t line_begin = line.find_first_not_of(' ');
     size_t line_end   = line.find_last_not_of(' ');
-    
+
     // linha que so tem espaco em branco, descartando ela
     if (line_begin == std::string::npos && line_end == std::string::npos)
       continue;
@@ -105,7 +105,7 @@ int main (int argc, char** argv) {
     string stripped_line = line.substr(line_begin, line_end + 1);
 
     // ignorando comentarios
-    if (stripped_line.c_str()[0] == '#') 
+    if (stripped_line.c_str()[0] == '#')
       continue;
 
     const size_t key_end_space = stripped_line.find(" ");
@@ -132,11 +132,11 @@ int main (int argc, char** argv) {
 
   // zerar estrutura
   memset((char *) &si_me, 0, sizeof(si_me));
-     
+
   si_me.sin_family = AF_INET;
   si_me.sin_port = htons(port);
   si_me.sin_addr.s_addr = htonl(INADDR_ANY);
-     
+
   //bind socket para porta
   if (bind(sockfd , (struct sockaddr*)&si_me, sizeof(si_me) ) == -1) {
     perr("bind");
@@ -168,8 +168,8 @@ int main (int argc, char** argv) {
   printf("Vizinhos: \n");
 
   for (int i = 0; i < argc - 3; i++) {
-    printf("(%s,%s) ", neighbors[i].ip.c_str(), neighbors[i].port.c_str());
-    if (i % 3 == 0) 
+    printf("(%s,%s) ", neighbours[i].ip.c_str(), neighbours[i].port.c_str());
+    if (i % 3 == 0)
       printf("\n");
   }
   printf("\n");
@@ -180,21 +180,22 @@ int main (int argc, char** argv) {
   while (true) {
     printf("Aguardando solicitacao...\n");
     fflush(stdout);
-         
+
     // bloquear enquanto espera alguma entrada de dados
     if ((recv_len = recvfrom(sockfd, buf, BUFLEN, 0, (struct sockaddr *) &si_other, &slen)) == -1) {
       perr("recvfrom()");
     }
-         
+
     // imprimir detalhes da host que nos enviou dados
     printf("Received packet from %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-    printf("Data: %s\n" , buf);
-         
-    if (sendto(sockfd, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1) {
+    printf("Data: %s\n" , &buf[2]);
+    printf("\nEstou ignorando o cliente, não irei responder...\n\n");
+    /*if (sendto(sockfd, buf, recv_len, 0, (struct sockaddr*) &si_other, slen) == -1) {
       perr("sendto()");
-    }
+    }*/
+
   }
 
-  close(sockfd);  
+  close(sockfd);
   return 0;
 }

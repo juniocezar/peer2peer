@@ -3,7 +3,7 @@
 * Junio Cezar Ribeiro da Silva - 2012075597                                    *
 * cliente                                                                      *
 * Compilar: make                                                               *
-* Executar: ./client <IP:PORTA>                                                   *    
+* Executar: ./client <IP:PORTA>                                                   *
 *******************************************************************************/
 // Escrito em C com Classes haha
 
@@ -17,6 +17,9 @@
 #include <unistd.h>
 #include <map>
 #include <fstream>
+#include <sys/time.h>
+
+#define KEY_LEN 40
 
 using std::string;
 
@@ -43,7 +46,7 @@ uint16_t unpack(char *byte_array, char *data, int data_len) {
 }
 
 
-// key --> up to 40 chars
+// key --> up to KEY_LEN chars
 // values -> up to 160 chars
 
 int main (int argc, char** argv) {
@@ -55,8 +58,8 @@ int main (int argc, char** argv) {
 
   char* ip   = strtok(argv[1], ":");
   char* port = strtok(NULL, ":");
-    
-  
+
+
   // Inicializar socket
   struct sockaddr_in si_other;
   int sockfd;
@@ -66,36 +69,56 @@ int main (int argc, char** argv) {
     perr("socket");
   }
 
+  // Setando as configurações de timeout do recvfrom
+  struct timeval tv;
+  tv.tv_sec = 4; // Timeout de 4 segundos para o recvfrom
+  tv.tv_usec = 0;
+  if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO,&tv,sizeof(tv)) < 0) {
+    perr("setsockopt()");
+  }
+
   // zerar estrutura
   memset((char *) &si_other, 0, sizeof(si_other));
-     
+
   // cliente dara bind na mesma porta do par
   si_other.sin_family = AF_INET;
   si_other.sin_port = htons(atoi(port));
   si_other.sin_addr.s_addr = inet_addr(ip);
 
-  char key[40];
-  printf("Insira uma chave para consulta, max 40 caracteres: ");
+  char key[KEY_LEN];
+  printf("Insira uma chave para consulta, max %d caracteres: ", KEY_LEN);
   scanf("%s", key);
 
-  char byte_array[42];
-  pack(1, key, byte_array, 42);
+  char byte_array[KEY_LEN + 2], data[170], msg[160];
+  pack(1, key, byte_array, KEY_LEN + 2);
+  unsigned int slen = sizeof(si_other);
+  int recv_len;
 
-  if (sendto(sockfd, byte_array, sizeof(byte_array), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
-    perr("sendto()"); // ToDo: perr -> pwar
+  // COMUNICAÇÃO COM O SERVANT
+  for(int i=1; i<=2; i++){ // Tentar se comunicar duas vezes com o servant. Somente duas vezes.
+    if (sendto(sockfd, byte_array, sizeof(byte_array), 0, (struct sockaddr*) &si_other, sizeof(si_other)) == -1) {
+      perr("sendto()"); // ToDo: perr -> pwar
+    }
+    recv_len = recvfrom(sockfd, data, 170, 0, (struct sockaddr *) &si_other, &slen);
+    if(recv_len != -1){
+      break;
+    }
+    if(i==1){
+        printf("Não foi obtida uma resposta, tantando enviar mensagem novamente...\n");
+    }
+  }
+  // COMUNICAÇÃO COM O SERVANT
+
+  if(recv_len != -1){
+    // imprimir detalhes da host que nos enviou dados
+    uint16_t code = unpack(data, msg, 160);
+    printf("Received packet ID = %u from %s:%d\n", code, inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
+    printf("Data: %s\n", msg);
+  }else{
+    printf("Não foi possível conectar-se à rede, programa ser encerrado...\n");
   }
 
-  char data[170];
-  char msg[160];
-  unsigned int slen = sizeof(si_other);
-  int recv_len = recvfrom(sockfd, data, 170, 0, (struct sockaddr *) &si_other, &slen);
-         
-  // imprimir detalhes da host que nos enviou dados  
-  uint16_t code = unpack(data, msg, 160);
-  printf("Received packet ID = %u from %s:%d\n", code, inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
-  printf("Data: %s\n", msg);
-  
-    
+
 
   return 0;
 }
