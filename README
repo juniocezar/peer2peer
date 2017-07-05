@@ -16,3 +16,93 @@ Execução:
             ./cliente <IP:PORTA>
 
 
+
+Formalizacao das mensagens trocadas e do funcionamento geral:
+
+1 - Chaves tem maximo de 40 caracteres
+2 - Valores tem maximo de 160 caracteres
+
+==============================================================
+TIPO MSG | < Demais Campos, variados >
+==============================================================
+
+
+
+
+
+
+
+---------------------------------------- CLIENTE --> SERVENT --------------------------------------
+
+TIPO = CLIREQ = 1
+
+Mensagem (42 bytes no total)
+==============================================================
+CLIREQ (2 bytes) | CHAVE (40 bytes) 
+==============================================================
+
+
+
+
+
+---------------------------------------- SERVENT <--> SERVENT -------------------------------------
+
+TIPO = QUERY = 2
+
+Mensagem (65 bytes no total)
+==============================================================
+  QUERY  |  TTL  | IP_Cliente | PORTA_Cliente | SEQ | CHAVE   
+==============================================================
+ 2 bytes     2      15 bytes        2 bytes      4    40 bytes
+
+IP_Cliente tem 15 bytes pois utilizaremos o modelo XXX.XXX.XXX.XXX do IPv4 para enderecamento. 
+Essa informacao estara contida em um array uint8_t de 15 posicoes ou um char[15].
+Zeros deverao ser utilizados para preencher todos os campos. Por exemplo, o endereco IPv4
+127.0.0.1 devera ser transformado em um const char igual a "127.000.000.001" e somente depois
+enviado ao destinatario
+
+
+
+----------------------------------------- SERVENT --> CLIENT -------------------------------------
+
+TIPO = RESPONSE = 3 
+
+Mensagem (204 bytes no total)
+==============================================================
+   RESPONSE   |    CHAVE   | '\t' |  VALOR_ASSOCIADO  | '\0'   
+==============================================================
+   2 bytes       40 bytes     1         160 bytes         1 
+
+--------------------------------------------------------------------------------------------------
+
+FUNCIONAMENTO
+
+1 - Cliente manda mensagem CLIREQ para o Servent ao qual esta conectado
+    1.1 - Ele espera resposta por 4 segundos e caso nao receba nada, ele retransmite a msg UMA 
+          UNICA VEZ
+    1.2 - Ao receber uma resposta, ele nao sabe mais quantas irao chegar, por isso ele entra em
+          LOOP aguardando respostas a cada 4 segundos. 
+    1.3 - A Cada nova resposta, ele imprime a chave na tela e o servant que o enviou
+    1.4 - Se dentro do loop ele ficar por 4 segundos sem receber respostas, ele finaliza essa 
+          espera e volta a esperar entrada do usuario via CLI.
+
+
+2 - Servant recebe mensagem CLIREQ de um Cliente qualquer
+    2.1 - Ele gera uma mensagem QUERY, com TTL = 3, SEQ = Contador*, e a envia a todos os vizinhos
+          ao qual ele esta conectado.    *iniciado com 0, incrementado a cada novo CLIREQ recebido 
+    2.1.1 - A transmissao aos vizinhos e via algo similar ao alagamento confiavel, com isso cada 
+            Servent deve manter um set de msgs QUERY ja recebidas no modelo: 
+            string QUERY = string(IP + PORTA + SEQ + CHAVE) --> tem no maximo 15+5+10+40 = 70 
+            caracteres.
+
+    2.2 - Servent procura a chave recebida no dicionario local e , CASO ACHE , ele responde ao 
+          ao cliente com uma msg RESPONSE, ao contrario ele nao faz nada. 
+    2.3 - Se o cliente retransmitir uma CLIREQ, ela recebera um novo numero de sequencia no servent
+
+
+3 - Servent recebe mensagem QUERY de outro Servent
+    3.1 - Verifica no Set de msgs QUERY se mensagem ja foi recebida anteriormente.
+          Se ja foi vista, descarta operacao
+    3.1 - Servent decremente TTL por uma unidade e verifica se TTL resultado > 0
+    3.2 - Se TTL > 0, retransmite a QUERY aos vizinhos (- oq mandou a msg), atualiando o TTL da msg
+    3.3 - Procura chave no dicionario e se achar responde com msg RESPONSA ao cliente original
