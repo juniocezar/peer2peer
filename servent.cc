@@ -31,7 +31,7 @@
 using std::string;
 
 // Verificar se parametros passados estao corretos e extrair dados deles
-bool validParameters (int argc, char** argv, struct sockaddr_in **neighbours, char** filename);
+bool validParameters (int argc, char** argv, struct sockaddr_in *neighbours, char** filename);
 
 // 
 void pack_query(uint16_t code, uint16_t ttl, uint32_t ip, uint16_t port, uint32_t seq, char* key, 
@@ -51,8 +51,12 @@ int main (int argc, char** argv) {
   std::map <string, string> dictionary;
   std::set<string> requestsReceived;
 
-  // checando se os parametros passados sao validos    
-  if(not validParameters(argc, argv, &neighbours, &data_base_name))
+  // checando se os parametros passados sao validos  
+  if(argc > 3) 
+    neighbours = (struct sockaddr_in*) malloc((argc - 2) * sizeof(struct sockaddr_in));  
+
+
+  if(not validParameters(argc, argv, neighbours, &data_base_name))
     return 1;
 
   int port = atoi(argv[1]);
@@ -102,8 +106,6 @@ int main (int argc, char** argv) {
     string value = stripped_line.substr(key_end, stripped_line.size());
 
     dictionary[key] = value;
-    //std::cout << "Chave encontrada:" << dictionary.find(key)->first << '\n';
-    //std::cout << "Valor encontrado:" << dictionary.find(key)->second << '\n';
 
     //Nota: Podemos retirar os espacos em branco ou tabs do inicio dos valores
     // nao eh necessario segundo a documentacao, mas seria interessante
@@ -157,7 +159,7 @@ int main (int argc, char** argv) {
 
   for (int i = 0; i < numNiggas; i++) {
     printf("(%s:%u) ", inet_ntoa(neighbours[i].sin_addr), ntohs(neighbours[i].sin_port));
-    break;
+    
     if (i % 3 == 0)
       printf("\n");
   }
@@ -204,7 +206,7 @@ int main (int argc, char** argv) {
         sSeqNum << seqNum;
         
 
-        string requestIdentifier = inet_ntoa(si_other.sin_addr) + sSeqNum.str() + sSeqNum.str() + keyReceived;
+        string requestIdentifier = inet_ntoa(si_other.sin_addr) + sPort.str() + sSeqNum.str() + keyReceived;
         requestsReceived.insert(requestIdentifier);
         seqNum++;
 
@@ -239,7 +241,7 @@ int main (int argc, char** argv) {
       uint16_t ttl, portClient;
       uint32_t ipClient, inSeqNum;
       unpack_query(buf, &ttl, &ipClient, &portClient, &inSeqNum, keyReceived);  
-      ttl = ntohs(ttl)    ;
+      ttl = ntohs(ttl);
 
       // Verificar se ja recebi essa mesma requisicao      
       std::ostringstream sPort, sSeqNum;
@@ -251,15 +253,18 @@ int main (int argc, char** argv) {
       printf("==> Cliente original: %s:%d, SeqNum: %u, Chave: %s\n", inet_ntoa(clientIP), ntohs(portClient), ntohs(inSeqNum), keyReceived);
 
       string requestIdentifier = inet_ntoa(clientIP) + sPort.str() + sSeqNum.str() + keyReceived;
+      printf("Identificacao do pacote: %s\n", requestIdentifier.c_str());
       if (requestsReceived.count(requestIdentifier)) { // caso em que ja recebi a requisicao anteriormente
         printf("Recebi solicitacao repetida, ignorando operacao.\n");
         continue;
       } else {
+        requestsReceived.insert(requestIdentifier);
         ttl--;
         printf("Retransmitindo QUERY para meus vizinhos. Novo TTL: %u\n", ttl);
         if (ttl > 0) { // retrasmite aos meus vizinhos
           ttl = htons(ttl);
           memcpy(&(buf[2]), &ttl, sizeof(ttl)); // atualizando ttl na mensagem
+          slen = sizeof(neighbours[i]);
           for (int i = 0; i < numNiggas; i++) {
             if (sendto(sockfd, buf, IN_BYTES_SRV, 0, (struct sockaddr*) &(neighbours[i]), slen) == -1) {
               perr("sendto()");
@@ -308,7 +313,7 @@ int main (int argc, char** argv) {
 
 
 
-bool validParameters (int argc, char** argv, struct sockaddr_in **neighbours, char** filename) {
+bool validParameters (int argc, char** argv, struct sockaddr_in *neighbours, char** filename) {
 
   if (argc < 3) {    
     fprintf(stderr, "Modo de executar: \
@@ -317,7 +322,9 @@ bool validParameters (int argc, char** argv, struct sockaddr_in **neighbours, ch
   }
 
   *filename = argv[2];
-  *neighbours = (struct sockaddr_in*) malloc((argc - 3) * sizeof(struct sockaddr_in));
+
+  if(argc == 3) 
+    return true;
 
   // iterando sobre argumentos para extrair vizinhos a se conectar
   // i = 3, pois iremos ignorar os 3 primeiros argumentos da cli
@@ -330,9 +337,10 @@ bool validParameters (int argc, char** argv, struct sockaddr_in **neighbours, ch
       return 1;
     }
 
-    neighbours[i-3]->sin_family = AF_INET;
-    neighbours[i-3]->sin_port = htons(atoi(port));
-    neighbours[i-3]->sin_addr.s_addr = inet_addr(ip);
+    printf("argc %d - i %d\n", argc, i);
+    neighbours[i-3].sin_family = AF_INET;
+    neighbours[i-3].sin_port = htons(atoi(port));
+    neighbours[i-3].sin_addr.s_addr = inet_addr(ip);
     
     i++;
   }
@@ -364,7 +372,7 @@ void unpack_query(char *byte_array, uint16_t* ttl, uint32_t* ipClient, uint16_t*
   memcpy(ipClient, &(byte_array[4]), sizeof(*ipClient)); // IP
   memcpy(portClient, &(byte_array[8]), sizeof(*portClient)); // PORTA
   memcpy(inSeqNum, &(byte_array[10]), sizeof(*inSeqNum)); // SEQ
-  memcpy(key, &(byte_array[14]), strlen(key)); //
+  memcpy(key, &(byte_array[14]), strlen(&(byte_array[14]))); //
 
 }
 
