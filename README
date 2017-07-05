@@ -49,17 +49,12 @@ CLIREQ (2 bytes) | CHAVE (40 bytes)
 
 TIPO = QUERY = 2
 
-Mensagem (65 bytes no total)
+Mensagem (54 bytes no total)
 ==============================================================
   QUERY  |  TTL  | IP_Cliente | PORTA_Cliente | SEQ | CHAVE   
 ==============================================================
- 2 bytes     2      15 bytes        2 bytes      4    40 bytes
+ 2 bytes     2      4 bytes        2 bytes      4    40 bytes
 
-IP_Cliente tem 15 bytes pois utilizaremos o modelo XXX.XXX.XXX.XXX do IPv4 para enderecamento. 
-Essa informacao estara contida em um array uint8_t de 15 posicoes ou um char[15].
-Zeros deverao ser utilizados para preencher todos os campos. Por exemplo, o endereco IPv4
-127.0.0.1 devera ser transformado em um const char igual a "127.000.000.001" e somente depois
-enviado ao destinatario
 
 
 
