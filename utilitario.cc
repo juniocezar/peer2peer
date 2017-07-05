@@ -1,11 +1,11 @@
 #include "utilitario.h"
 
 
-void getMessageType(int &msgId, char * buf){
+void getMessageType(int *msgId, char * buf){
 
     uint16_t code_net;
     memcpy(&code_net, &(buf[0]), sizeof(code_net));
-    msgId = ntoh(code_net);
+    *msgId = ntohs(code_net);
 
 }
 
@@ -36,7 +36,7 @@ void pack(uint16_t code, char *data, char *byte_array, int byte_array_len) {
 uint16_t unpack(char *byte_array, char *data, int data_len) {
 
   uint16_t code_net;
-  memset(data, '\0', sizeof(*data) * data_len);
+  memset(data, '\0', sizeof(*data) * data_len);  
   memcpy(&code_net, &(byte_array[0]), sizeof(code_net)); // CODE, QUERY, RESPONSE,
   memcpy(data, &(byte_array[2]), sizeof(*data) * data_len); //
   return ntohs(code_net);

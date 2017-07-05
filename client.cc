@@ -30,7 +30,7 @@
 using std::string;
 
 // Verificar se parametros passados estao corretos e extrair dados deles
-bool validParameters (int argc, char** argv, char* ip, char* port);
+bool validParameters (int argc, char** argv, char** ip, char** port);
 
 
 int main (int argc, char** argv) {
@@ -40,13 +40,14 @@ int main (int argc, char** argv) {
   int sockfd;
 
   // checando se os parametros passados sao validos  
-  if (not validParameters(argc, argv, ipToConnect, portToConnect))
+  if (not validParameters(argc, argv, &ipToConnect, &portToConnect))
     return 1;
   
   //criar socket UDP
   if ((sockfd=socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
     perr("socket");
   }
+
 
   // Setando as configurações de timeout do recvfrom
   struct timeval tv;
@@ -68,28 +69,32 @@ int main (int argc, char** argv) {
   outServent.sin_port = htons(atoi(portToConnect));
   outServent.sin_addr.s_addr = inet_addr(ipToConnect);
 
+  int recv_len; 
   char key[KEY_LEN];
-  char byte_array[KEY_LEN + 2], response[RESPONSE_LEN], msg[VALUE_LEN];
-  int recv_len;
+  char byte_array[KEY_LEN + 2], response[RESPONSE_LEN], *msg;
+  msg = (char *) malloc(VALUE_LEN * sizeof(char));
 
-  while (true) {
-    printf("Insira uma chave para consulta, max %d caracteres: ", KEY_LEN);
+  while (true) {    
+    printf("\nInsira uma chave para consulta, max %d caracteres: ", KEY_LEN);
     scanf("%s", key);
     
     pack(CLIREQ, key, byte_array, KEY_LEN + 2);
     unsigned int slen = sizeof(outServent);
     
-    // Enviando pacote ao servent associado
-    for (int i=1; i<=2; i++) { // Tentar se comunicar duas vezes com o servant. Somente duas vezes.
-      if (sendto(sockfd, byte_array, sizeof(byte_array), 0, (struct sockaddr*) &outServent, sizeof(outServent)) == -1) {
+    // Enviando pacote ao servent associado    
+    for (int i=1; i<=2; i++) { // Tentar se comunicar duas vezes com o servant. Somente duas vezes.      
+      printf("mandando para: %s:%u\n", inet_ntoa(outServent.sin_addr), ntohs(outServent.sin_port) );
+      if (sendto(sockfd, byte_array, sizeof(byte_array), 0, (struct sockaddr*) &outServent, slen) == -1) {
         perr("sendto()"); // ToDo: perr -> pwar
       }
       recv_len = recvfrom(sockfd, response, RESPONSE_LEN, 0, (struct sockaddr *) &inServent, &slen);
-      if (recv_len != -1){
+      if (recv_len != -1) {
         break;
       }
       if (i==1){
-          printf("Não foi obtida uma resposta, tantando enviar mensagem novamente...\n");
+          printf("Não foi obtida uma resposta, tantando enviar mensagem novamente...\n");          
+      } else if (i == 2) {
+        printf("Numero de tentativas de reenvio extrapolado, cancelando operacao.\n\n");
       }
     }
     
@@ -111,10 +116,11 @@ int main (int argc, char** argv) {
          * e damos controle ao usuario via cli para novas solicitacoes */
         if (recv_len < 0)
           break;
-      }    
+      }   
     }
   }
 
+  free(msg);
   close(sockfd);
 
   return 0;
@@ -122,7 +128,7 @@ int main (int argc, char** argv) {
 }
 
 
-bool validParameters (int argc, char** argv, char* ip, char* port) {
+bool validParameters (int argc, char** argv, char** ip, char** port) {
   
   if (argc < 2) {
     fprintf(stderr, "Modo de executar: \
@@ -130,8 +136,8 @@ bool validParameters (int argc, char** argv, char* ip, char* port) {
     return false;
   }
 
-  ip   = strtok(argv[1], ":");
-  port = strtok(NULL, ":");
+  *ip   = strtok(argv[1], ":");
+  *port = strtok(NULL, ":");
 
   return true;
 

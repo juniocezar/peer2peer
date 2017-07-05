@@ -16,7 +16,7 @@ typedef enum msgTypes_ {CLIREQ = 1, QUERY = 2, RESPONSE = 3} msgType;
 typedef enum appTypes_ {CLIENT, SERVENT} appType;
 
 
-void getMessageType(int &msgId, char * buf);
+void getMessageType(int *msgId, char * buf);
 
 void getKey(char * key, char * buf);
 
