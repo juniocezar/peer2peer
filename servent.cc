@@ -7,7 +7,7 @@
 * Executar: ./servent <PORTA> <ARQUIVO-BASE-DADOS> <IP1:PORTA1>...<IPN:PORTAN> *
 *******************************************************************************/
 // Escrito em C com Classes haha
-
+#include<algorithm>
 #include <iostream>
 #include <cstdio>
 #include <string>
@@ -33,27 +33,29 @@ using std::string;
 // Verificar se parametros passados estao corretos e extrair dados deles
 bool validParameters (int argc, char** argv, struct sockaddr_in *neighbours, char** filename);
 
-// 
-void pack_query(uint16_t code, uint16_t ttl, uint32_t ip, uint16_t port, uint32_t seq, char* key, 
+//
+void pack_query(uint16_t code, uint16_t ttl, uint32_t ip, uint16_t port, uint32_t seq, char* key,
   uint8_t *byte_array, int byte_array_len);
 
-void unpack_query(char *byte_array, uint16_t* ttl, uint32_t* ipClient, uint16_t* portClient, 
+void unpack_query(char *byte_array, uint16_t* ttl, uint32_t* ipClient, uint16_t* portClient,
   uint32_t* inSeqNum, char* key);
 
 //
 void pack_response(uint16_t code, string key, string value, char *byte_array, int byte_array_len);
 
+std::string tabTrim(std::string const& str);
+std::string alltrim(std::string const& str);
 
 int main (int argc, char** argv) {
-  
+
   char* data_base_name;
   struct sockaddr_in *neighbours;
   std::map <string, string> dictionary;
   std::set<string> requestsReceived;
 
-  // checando se os parametros passados sao validos  
-  if(argc > 3) 
-    neighbours = (struct sockaddr_in*) malloc((argc - 2) * sizeof(struct sockaddr_in));  
+  // checando se os parametros passados sao validos
+  if(argc > 3)
+    neighbours = (struct sockaddr_in*) malloc((argc - 2) * sizeof(struct sockaddr_in));
 
 
   if(not validParameters(argc, argv, neighbours, &data_base_name))
@@ -103,8 +105,7 @@ int main (int argc, char** argv) {
     const size_t key_end = key_end_tab < key_end_space ? key_end_tab : key_end_space;
 
     string key   = stripped_line.substr(0, key_end);
-    string value = stripped_line.substr(key_end, stripped_line.size());
-
+    string value = alltrim(stripped_line.substr(key_end, stripped_line.size()));
     dictionary[key] = value;
 
     //Nota: Podemos retirar os espacos em branco ou tabs do inicio dos valores
@@ -159,7 +160,7 @@ int main (int argc, char** argv) {
 
   for (int i = 0; i < numNiggas; i++) {
     printf("(%s:%u) ", inet_ntoa(neighbours[i].sin_addr), ntohs(neighbours[i].sin_port));
-    
+
     if (i % 3 == 0)
       printf("\n");
   }
@@ -173,7 +174,7 @@ int main (int argc, char** argv) {
 
   while (true) {
     printf("===========================================================\n");
-    printf("Aguardando solicitacao...\n");    
+    printf("Aguardando solicitacao...\n");
     fflush(stdout);
 
     /* Bloquear enquanto espera alguma entrada de dados
@@ -183,28 +184,28 @@ int main (int argc, char** argv) {
       perr("recvfrom()");
     }
 
-    getMessageType(&msgId, buf);    
+    getMessageType(&msgId, buf);
 
-    if (msgId == CLIREQ) { // mensagem vem de cliente      
+    if (msgId == CLIREQ) { // mensagem vem de cliente
       getKey(keyReceived, buf);
 
       // imprimir detalhes da host que nos enviou dados
-      printf("Recebi CLIREQ do cliente %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));      
+      printf("Recebi CLIREQ do cliente %s:%d\n", inet_ntoa(si_other.sin_addr), ntohs(si_other.sin_port));
       printf("Chave consultada: < %s >\n", keyReceived);
 
-      /* Gerando pacote QUERY para enviar aos meus vizinhos, se tiver algum     
+      /* Gerando pacote QUERY para enviar aos meus vizinhos, se tiver algum
        * e adicionando requisicao ao set de queries ja recebidos (nao estou certo se precisa)*/
       if (numNiggas > 0) {
         printf("Enviando QUERY aos meus vizinhos\n");
         uint16_t TTL = 3;
         uint8_t byte_array[IN_BYTES_SRV];
         pack_query(QUERY, TTL, si_other.sin_addr.s_addr, si_other.sin_port, seqNum, keyReceived, byte_array, IN_BYTES_SRV);
-        
+
         // convertendo inteiros para strings
         std::ostringstream sPort, sSeqNum;
         sPort << ntohs(si_other.sin_port);
         sSeqNum << seqNum;
-        
+
 
         string requestIdentifier = inet_ntoa(si_other.sin_addr) + sPort.str() + sSeqNum.str() + keyReceived;
         requestsReceived.insert(requestIdentifier);
@@ -218,13 +219,13 @@ int main (int argc, char** argv) {
         }
       }
 
-      // Procurando chave no dicionario local                
+      // Procurando chave no dicionario local
       std::map<string, string>::iterator it;
       it = dictionary.find(keyReceived);
-      if (it != dictionary.end()) {    
-        printf("Chave encontrada no banco de dados com valor:\n==>%s\n", it->second.c_str());       
+      if (it != dictionary.end()) {
+        printf("Chave encontrada no banco de dados com valor:\n==>%s\n", it->second.c_str());
         char *byte_array = (char*) malloc(OUT_BYTES_RES * sizeof(char));
-        pack_response(RESPONSE, it->first, it->second, byte_array, OUT_BYTES_RES);        
+        pack_response(RESPONSE, it->first, it->second, byte_array, OUT_BYTES_RES);
         //printf("Code certo out = %u\n", ntohs(*((uint16_t*)&byte_array[0])));
         if (sendto(sockfd, byte_array, OUT_BYTES_RES, 0, (struct sockaddr*) &si_other, slen) == -1) {
           perr("sendto()");
@@ -234,16 +235,16 @@ int main (int argc, char** argv) {
       } else {
         printf("Chave solicitada nao encontrada na base de dados.\n");
       }
-      
+
 
     } else if (msgId == QUERY) { // mensagem vem de servent
       printf("Recebi QUERY de um vizinho\n");
       uint16_t ttl, portClient;
       uint32_t ipClient, inSeqNum;
-      unpack_query(buf, &ttl, &ipClient, &portClient, &inSeqNum, keyReceived);  
+      unpack_query(buf, &ttl, &ipClient, &portClient, &inSeqNum, keyReceived);
       ttl = ntohs(ttl);
 
-      // Verificar se ja recebi essa mesma requisicao      
+      // Verificar se ja recebi essa mesma requisicao
       std::ostringstream sPort, sSeqNum;
       sPort << ntohs(portClient);
       sSeqNum << ntohs(inSeqNum);
@@ -270,17 +271,17 @@ int main (int argc, char** argv) {
               perr("sendto()");
             }
           }
-          if(numNiggas == 0) 
+          if(numNiggas == 0)
             printf("==> Nao ha vizinhos para retransmitir\n");
         } else {
           printf("TTL final da mensagem igual a zero, nao retransmitirei ...\n");
         }
       }
 
-      // Procurando chave no dicionario local                
+      // Procurando chave no dicionario local
       std::map<string, string>::iterator it;
       it = dictionary.find(keyReceived);
-      if(it != dictionary.end()){         
+      if(it != dictionary.end()){
         char *byte_array = (char*) malloc(OUT_BYTES_RES * sizeof(char));
         struct sockaddr_in client;
         client.sin_family = AF_INET;
@@ -290,16 +291,16 @@ int main (int argc, char** argv) {
 
         if (sendto(sockfd, byte_array, OUT_BYTES_RES, 0, (struct sockaddr*) &client, slen) == -1) {
           perr("sendto()");
-        }          
-        free(byte_array);        
+        }
+        free(byte_array);
       } else {
         printf("Chave solicitada nao encontrada na base de dados.\n");
       }
 
     } else {
       perr("Mensagem com tipo nao identificado.");
-    }    
-    
+    }
+
     printf("===========================================================\n\n");
 
   }
@@ -315,7 +316,7 @@ int main (int argc, char** argv) {
 
 bool validParameters (int argc, char** argv, struct sockaddr_in *neighbours, char** filename) {
 
-  if (argc < 3) {    
+  if (argc < 3) {
     fprintf(stderr, "Modo de executar: \
         \n./servant <porta> <base-de-dados> <ip:porta> ... <ip_n:porta_n>\n");
     return false;
@@ -323,7 +324,7 @@ bool validParameters (int argc, char** argv, struct sockaddr_in *neighbours, cha
 
   *filename = argv[2];
 
-  if(argc == 3) 
+  if(argc == 3)
     return true;
 
   // iterando sobre argumentos para extrair vizinhos a se conectar
@@ -341,7 +342,7 @@ bool validParameters (int argc, char** argv, struct sockaddr_in *neighbours, cha
     neighbours[i-3].sin_family = AF_INET;
     neighbours[i-3].sin_port = htons(atoi(port));
     neighbours[i-3].sin_addr.s_addr = inet_addr(ip);
-    
+
     i++;
   }
 
@@ -353,19 +354,19 @@ void pack_response(uint16_t code, string key, string value, char *byte_array, in
 
 
 
-  string keyValue = string(key + '\t' + value + '\0');  
+  string keyValue = string(key + '\t' + value + '\0');
   const char* keyValueChar = keyValue.c_str();
 
   code = htons(code);
   memset(byte_array, 0, sizeof(*byte_array) * byte_array_len);
 
   memcpy(&(byte_array[0]), &code, sizeof(code)); // RESPONSE
-  memcpy(&(byte_array[2]), keyValueChar, strlen(keyValueChar) + 1); // +1 para incluir \0  
+  memcpy(&(byte_array[2]), keyValueChar, strlen(keyValueChar) + 1); // +1 para incluir \0
 
 }
 
 
-void unpack_query(char *byte_array, uint16_t* ttl, uint32_t* ipClient, uint16_t* portClient, 
+void unpack_query(char *byte_array, uint16_t* ttl, uint32_t* ipClient, uint16_t* portClient,
   uint32_t* inSeqNum, char* key) {
 
   memcpy(ttl, &(byte_array[2]), sizeof(*ttl)); // TTL
@@ -377,7 +378,7 @@ void unpack_query(char *byte_array, uint16_t* ttl, uint32_t* ipClient, uint16_t*
 }
 
 
-void pack_query(uint16_t code, uint16_t ttl, uint32_t ip, uint16_t port, uint32_t seq, char* key, 
+void pack_query(uint16_t code, uint16_t ttl, uint32_t ip, uint16_t port, uint32_t seq, char* key,
   uint8_t *byte_array, int byte_array_len) {
 
   code = htons(code);
@@ -392,4 +393,26 @@ void pack_query(uint16_t code, uint16_t ttl, uint32_t ip, uint16_t port, uint32_
   memcpy(&(byte_array[10]), &seq, sizeof(seq)); // SEQ
   memcpy(&(byte_array[14]), key, strlen(key)); //
 
+}
+
+std::string tabTrim(std::string const& str){
+    if(str.empty())
+        return str;
+
+    std::size_t firstScan = str.find_first_not_of('\t');
+    std::size_t first     = firstScan == std::string::npos ? str.length() : firstScan;
+    std::size_t last      = str.find_last_not_of('\t');
+
+    return str.substr(first, last-first+1);
+}
+
+std::string alltrim(std::string const& str){
+    if(str.empty())
+        return str;
+
+    std::size_t firstScan = str.find_first_not_of(' ');
+    std::size_t first     = firstScan == std::string::npos ? str.length() : firstScan;
+    std::size_t last      = str.find_last_not_of(' ');
+
+    return tabTrim(str.substr(first, last-first+1));
 }

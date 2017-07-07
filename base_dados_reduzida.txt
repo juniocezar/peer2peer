@@ -10,7 +10,7 @@
 # by IANA and used in the real-world or are needed by a debian package.
 # If you need a huge list of used numbers please install the nmap package.
 
-tcpmux		1/tcp				# TCP port service multiplexer
+tcpmux          1/tcp				# TCP port service multiplexer
 echo		7/tcp
 echo		7/udp
 discard		9/tcp		sink null

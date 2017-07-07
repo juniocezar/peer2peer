@@ -1,5 +1,7 @@
 #include "utilitario.h"
-
+#include <algorithm>
+#include <cctype>
+#include <locale>
 
 void getMessageType(int *msgId, char * buf){
 
@@ -23,4 +25,3 @@ void perr (const char *str) {
   exit(EXIT_FAILURE);
 
 }
-
