@@ -15,13 +15,16 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <ifaddrs.h>  // pegar interfaces ativas e IPs associados
 #include <map>
 #include <set>
 #include <utility>
 #include <fstream>
 #include <sstream>
 #include "utilitario.h"
+
+#if USEADDR
+  #include <ifaddrs.h>  // pegar interfaces ativas e IPs associados
+#endif
 
 
 #define IN_BYTES_SRV 55 // recebemos ou mandanmos no maximo 55 bytes a outro servant
@@ -69,6 +72,7 @@ int main (int argc, char** argv) {
   int port = atoi(argv[1]);
   int numNiggas = argc - 3;
   int seqNum = 0;
+  int i = 0;
 
 
   // Abrindo base de dados para criacao do dicionario
@@ -139,25 +143,30 @@ int main (int argc, char** argv) {
 
   printf("===========================================================\n");
   printf("\tServant iniciado e escutando na porta %u\n", ntohs(si_me.sin_port));
-  printf("\nAs seguintes interfaces e enderecos IPs podem ser\
-          \nutilizados para se comunicar com o servant:\n\n");
 
-  // listando interfaces ativas no computador e mostrando IPs associados
-  struct ifaddrs *ifap, *ifa;
-  struct sockaddr_in *sa;
-  char *addr;
+  #if USEADDR
 
-  getifaddrs (&ifap);
-  int i = 1;
-  for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
-    if (ifa->ifa_addr->sa_family==AF_INET) {
-      sa = (struct sockaddr_in *) ifa->ifa_addr;
-      addr = inet_ntoa(sa->sin_addr);
-      printf("%d - Interface: %s\tEndereco IP: %s\n", i, ifa->ifa_name, addr);
-      i++;
+    printf("\nAs seguintes interfaces e enderecos IPs podem ser\
+            \nutilizados para se comunicar com o servant:\n\n");
+
+    // listando interfaces ativas no computador e mostrando IPs associados
+    struct ifaddrs *ifap, *ifa;
+    struct sockaddr_in *sa;
+    char *addr;
+
+    getifaddrs (&ifap);
+    i = 1;
+    for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+      if (ifa->ifa_addr->sa_family==AF_INET) {
+        sa = (struct sockaddr_in *) ifa->ifa_addr;
+        addr = inet_ntoa(sa->sin_addr);
+        printf("%d - Interface: %s\tEndereco IP: %s\n", i, ifa->ifa_name, addr);
+        i++;
+      }
     }
-  }
-  freeifaddrs(ifap);
+    freeifaddrs(ifap);
+
+  #endif
 
   printf("\nDicionario local conta com %lu entradas.\n", dictionary.size());
   printf("Vizinhos: \n");
