@@ -13,28 +13,27 @@
 #include <string>
 #include <cstring>
 #include <cstdlib>
-#include <stdint.h> // ToDo: Macro para versao da std, 98 ou 11
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <map>
-#include <fstream>
 #include <sys/time.h>
-
 #include "utilitario.h"
 
-#define KEY_LEN 40
-#define RESPONSE_LEN 204
-#define VALUE_LEN 160
-
 using std::string;
+
+#define KEY_LEN 41
+#define RESPONSE_LEN 205
+#define VALUE_LEN 161
+
+
 
 // Verificar se parametros passados estao corretos e extrair dados deles
 bool validParameters (int argc, char** argv, char** ip, char** port);
 
-
+// Empacotar mensagem CLIREQ para envio ao servent associado
 void pack(uint16_t code, char *data, char *byte_array, int byte_array_len);
 
+// Desempacotar mensagem RESPONSE enviada por servent
 uint16_t unpack(char *byte_array, char *data, int data_len);
 
 
@@ -82,6 +81,7 @@ int main (int argc, char** argv) {
   while (true) {    
     printf("\nInsira uma chave para consulta, max %d caracteres: ", KEY_LEN);
     scanf("%s", key);
+    key[KEY_LEN - 1] = '\0'; // extra \0
     
     pack(CLIREQ, key, byte_array, KEY_LEN + 2);
     unsigned int slen = sizeof(outServent);
@@ -90,13 +90,14 @@ int main (int argc, char** argv) {
     for (int i=1; i<=2; i++) { // Tentar se comunicar duas vezes com o servant. Somente duas vezes.      
       printf("mandando para: %s:%u\n", inet_ntoa(outServent.sin_addr), ntohs(outServent.sin_port) );
       if (sendto(sockfd, byte_array, sizeof(byte_array), 0, (struct sockaddr*) &outServent, slen) == -1) {
-        perr("sendto()"); // ToDo: perr -> pwar
+        pwar("sendto(): Problema durante ultima chamada da funcao");
       }
+      // Aguardando resposta para solicitacao
       recv_len = recvfrom(sockfd, response, RESPONSE_LEN, 0, (struct sockaddr *) &inServent, &slen);
       if (recv_len != -1) {
         break;
       }
-      if (i==1){
+      if (i == 1){
           printf("Não foi obtida uma resposta, tantando enviar mensagem novamente...\n");          
       } else if (i == 2) {
         printf("Numero de tentativas de reenvio extrapolado, cancelando operacao.\n\n");
@@ -108,7 +109,7 @@ int main (int argc, char** argv) {
     if (recv_len != -1) {
       while (true) {
         // imprimir detalhes da host que nos enviou dados
-        uint16_t code = unpack(response, msg, RESPONSE_LEN);
+        uint16_t code = unpack(response, msg, VALUE_LEN);
         printf("Resposta recebida com ID = %u, enviada por %s:%d\n", code, inet_ntoa(inServent.sin_addr), ntohs(inServent.sin_port));
         printf("Dados: %s\n", msg);
 
@@ -161,9 +162,9 @@ void pack(uint16_t code, char *data, char *byte_array, int byte_array_len) {
 uint16_t unpack(char *byte_array, char *data, int data_len) {
 
   uint16_t code_net;
-  memset(data, '\0', sizeof(*data) * data_len);  
+  memset(data, '\0', data_len);  
   memcpy(&code_net, &(byte_array[0]), sizeof(code_net)); // CODE, QUERY, RESPONSE,
-  memcpy(data, &(byte_array[2]), sizeof(*data) * data_len); //
+  memcpy(data, &(byte_array[2]), data_len); //
   return ntohs(code_net);
 
 }
