@@ -1,7 +1,22 @@
+##########################################################################
+#  Compilar: make ou make no-addr                                        #
+#            make no-addr desabilita o uso da biblioteca ifaddrs.h       #
+#            responsavel por dar acesso as interfaces de rede            #
+#                                                                        #
+#  Executar: ./cliente IP:PORTA                                          #
+#                      IP e Porta sao obrigatorios e devem ser           #
+#                      obrigatoriamente separados por :                  #
+#                                                                        #
+#            ./servent PORTA ARQUIVO-BASE-DADOS IP1:PORTA1 .. IPn:PORTAn #
+#                      Apenas PORTA e argumento obrigatorio, os damais   #
+#                      sao opcionais                                     #
+#                                                                        #
+#                                                                        #
+##########################################################################
 
 Um Sistema Peer-to-peer de Armazenamento Chave-valor
 
-Grupo:  Junio Cezar | João Paulo | Humberto
+Grupo:  Junio Cezar (2012075597) | João Paulo | Humberto
 
 Implementar: * Um protocolo em nível de aplicaçao, utilizando
                interface de sockets UPD.
@@ -16,7 +31,6 @@ Execução:
             ./cliente <IP:PORTA>
 
 
-
 Formalizacao das mensagens trocadas e do funcionamento geral:
 
 1 - Chaves tem maximo de 40 caracteres
@@ -25,12 +39,6 @@ Formalizacao das mensagens trocadas e do funcionamento geral:
 ==============================================================
 TIPO MSG | < Demais Campos, variados >
 ==============================================================
-
-
-
-
-
-
 
 ---------------------------------------- CLIENTE --> SERVENT --------------------------------------
 
@@ -41,10 +49,6 @@ Mensagem (42 bytes no total)
 CLIREQ (2 bytes) | CHAVE (40 bytes) 
 ==============================================================
 
-
-
-
-
 ---------------------------------------- SERVENT <--> SERVENT -------------------------------------
 
 TIPO = QUERY = 2
@@ -54,8 +58,6 @@ Mensagem (54 bytes no total)
   QUERY  |  TTL  | IP_Cliente | PORTA_Cliente | SEQ | CHAVE   
 ==============================================================
  2 bytes     2      4 bytes        2 bytes      4    40 bytes
-
-
 
 
 ----------------------------------------- SERVENT --> CLIENT -------------------------------------
